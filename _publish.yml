@@ -1,0 +1,4 @@
+- source: project
+  quarto-pub:
+    - id: d8f1f058-437d-42cc-8140-08e2cee1094b
+      url: https://calvin.quarto.pub/ts-analysis

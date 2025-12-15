@@ -6,6 +6,24 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
+def load_dataset(dataset, parser=None):
+    """Load a dataset with optional custom parsing configuration.
+    
+    Args:
+        dataset: Name of the dataset file (without directory path)
+        parser: Optional dict with pandas read_csv kwargs (sep, header, names, na_values, etc.)
+                If None, uses default CSV parsing.
+    
+    Returns:
+        DataFrame with the loaded data
+    """
+    filepath = f'data/{dataset}.csv'
+    if parser is None:
+        df = pd.read_csv(filepath)
+    else:
+        df = pd.read_csv(filepath, **parser)
+    return df
+
 def calculate_metrics(test, preds):
     mse = mean_squared_error(test, preds)
     mae = mean_absolute_error(test, preds)
@@ -13,8 +31,8 @@ def calculate_metrics(test, preds):
     r2 = r2_score(test, preds)
     return mse, mae, rmse, r2
 
-def get_results_xgb_rolling(dataset, target, p, prop_test=0.1, verbose=True):
-    df = pd.read_csv(f'data/{dataset}.csv')
+def get_results_xgb_rolling(dataset, target, p, prop_test=0.1, verbose=True, parser=None):
+    df = load_dataset(dataset, parser)
     ts = df[target]
     train = ts[:int(len(ts) * (1 - prop_test))]
     test = ts[int(len(ts) * (1 - prop_test)):]
@@ -40,7 +58,7 @@ def get_results_xgb_rolling(dataset, target, p, prop_test=0.1, verbose=True):
         'r2': r2_xgb
     }
 
-def plot_best_rolling(results):
+def plot_best_rolling(results, dataset_name='Dataset'):
     """Plots the forecast for the best XGB and AR models (rolling approach)"""
     plt.close()
     test = results['XGB']['metrics'][results['XGB']['best_p']]['test']
@@ -55,15 +73,15 @@ def plot_best_rolling(results):
     sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
     sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
-    plt.title('Best XGBoost and AR Models (Rolling Approach)')
-    plt.ylabel('Power Consumption (MW)')
+    plt.title(f'{dataset_name}: Best XGBoost and AR Models (Rolling Approach)')
+    plt.ylabel('Value')
     plt.xlabel('Time')
     plt.grid(alpha=0.4, zorder=1)
     plt.legend()
-    plt.savefig('figs/plot-rolling-comparison.png')
+    plt.savefig(f'figs/plot-rolling-{dataset_name}.png')
 
-def get_results_AR_rolling(dataset, target, p, prop_test=0.1, verbose=True):
-    df = pd.read_csv(f'data/{dataset}.csv')
+def get_results_AR_rolling(dataset, target, p, prop_test=0.1, verbose=True, parser=None):
+    df = load_dataset(dataset, parser)
     ts = df[target]
     train = ts[:int(len(ts) * (1 - prop_test))]
     test = ts[int(len(ts) * (1 - prop_test)):]
@@ -89,23 +107,23 @@ def get_results_AR_rolling(dataset, target, p, prop_test=0.1, verbose=True):
         'r2': r2_AR
     }
 
-def find_best_model_rolling(dataset, target, p_candidates, prop_test=0.1):
+def find_best_model_rolling(dataset, target, p_candidates, prop_test=0.1, parser=None):
     results = {
         'XGB': {'best_p': None, 'best_mse': np.inf, 'metrics': {}},
         'AR': {'best_p': None, 'best_mse': np.inf, 'metrics': {}}
     }
     for p in p_candidates:
         try:
-            xgb_results = get_results_xgb_rolling(dataset, target, p, prop_test, verbose=False)
+            xgb_results = get_results_xgb_rolling(dataset, target, p, prop_test, verbose=False, parser=parser)
             results['XGB']['metrics'][p] = xgb_results
             if xgb_results['mse'] < results['XGB']['best_mse']:
                 results['XGB']['best_mse'] = xgb_results['mse']
                 results['XGB']['best_p'] = p
         except Exception as e:
-            print(f"AR MODEL FAILED AT P={p}, e={e}")
+            print(f"XGB MODEL FAILED AT P={p}, e={e}")
         
         try:
-            ar_results = get_results_AR_rolling(dataset, target, p, prop_test, verbose=False)
+            ar_results = get_results_AR_rolling(dataset, target, p, prop_test, verbose=False, parser=parser)
             results['AR']['metrics'][p] = ar_results
             if ar_results['mse'] < results['AR']['best_mse']:
                 results['AR']['best_mse'] = ar_results['mse']
@@ -139,9 +157,9 @@ def find_best_model_rolling(dataset, target, p_candidates, prop_test=0.1):
     return results
 
 
-def get_results_xgb_uptodate(dataset, target, p, prop_test=0.1, verbose=True):
+def get_results_xgb_uptodate(dataset, target, p, prop_test=0.1, verbose=True, parser=None):
     """XGBoost predictions using true y values (up-to-date approach)"""
-    df = pd.read_csv(f'data/{dataset}.csv')
+    df = load_dataset(dataset, parser)
     ts = df[target]
     train_size = int(len(ts) * (1 - prop_test))
     train = ts[:train_size]
@@ -169,9 +187,9 @@ def get_results_xgb_uptodate(dataset, target, p, prop_test=0.1, verbose=True):
     }
 
 
-def get_results_AR_uptodate(dataset, target, p, prop_test=0.1, verbose=True):
+def get_results_AR_uptodate(dataset, target, p, prop_test=0.1, verbose=True, parser=None):
     """AR predictions using true y values (up-to-date approach)"""
-    df = pd.read_csv(f'data/{dataset}.csv')
+    df = load_dataset(dataset, parser)
     ts = df[target].values
     train_size = int(len(ts) * (1 - prop_test))
     train = ts[:train_size]
@@ -199,7 +217,7 @@ def get_results_AR_uptodate(dataset, target, p, prop_test=0.1, verbose=True):
     }
 
 
-def find_best_model_uptodate(dataset, target, p_candidates, prop_test=0.1):
+def find_best_model_uptodate(dataset, target, p_candidates, prop_test=0.1, parser=None):
     """Find best model using up-to-date approach"""
     results = {
         'XGB': {'best_p': None, 'best_mse': np.inf, 'metrics': {}},
@@ -207,7 +225,7 @@ def find_best_model_uptodate(dataset, target, p_candidates, prop_test=0.1):
     }
     for p in p_candidates:
         try:
-            xgb_results = get_results_xgb_uptodate(dataset, target, p, prop_test, verbose=False)
+            xgb_results = get_results_xgb_uptodate(dataset, target, p, prop_test, verbose=False, parser=parser)
             results['XGB']['metrics'][p] = xgb_results
             if xgb_results['mse'] < results['XGB']['best_mse']:
                 results['XGB']['best_mse'] = xgb_results['mse']
@@ -216,7 +234,7 @@ def find_best_model_uptodate(dataset, target, p_candidates, prop_test=0.1):
             print(f"XGB MODEL FAILED AT P={p}: {e}")
 
         try:
-            ar_results = get_results_AR_uptodate(dataset, target, p, prop_test, verbose=False)
+            ar_results = get_results_AR_uptodate(dataset, target, p, prop_test, verbose=False, parser=parser)
             results['AR']['metrics'][p] = ar_results
             if ar_results['mse'] < results['AR']['best_mse']:
                 results['AR']['best_mse'] = ar_results['mse']
@@ -250,7 +268,7 @@ def find_best_model_uptodate(dataset, target, p_candidates, prop_test=0.1):
     return results
 
 
-def plot_best_uptodate(results):
+def plot_best_uptodate(results, dataset_name='Dataset'):
     """Plots the forecast for the best XGB and AR models (up-to-date approach)"""
     plt.close()
     test = results['XGB']['metrics'][results['XGB']['best_p']]['test']
@@ -265,9 +283,10 @@ def plot_best_uptodate(results):
     sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
     sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
-    plt.title('Best XGBoost and AR Models (Up-to-date Approach)')
-    plt.ylabel('Power Consumption (MW)')
+    plt.title(f'{dataset_name}: Best XGBoost and AR Models (Up-to-date Approach)')
+    plt.ylabel('Value')
     plt.xlabel('Time')
     plt.grid(alpha=0.4, zorder=1)
     plt.legend()
-    plt.savefig('figs/plot-uptodate-comparison.png')
+    plt.savefig(f'figs/plot-uptodate-{dataset_name}.png')
+

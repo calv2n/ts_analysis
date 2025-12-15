@@ -13,7 +13,8 @@ class ar_model:
     def forecast(self, train, n_forecast):
         """
         Rolling predictions: similar to how forecast works 
-        in autoregressive model. Uses only training data.
+        in autoregressive model. Uses only training data and
+        yhats.
         """
         if not self.trained:
             raise Exception("Must train model to get forecast")

@@ -1,6 +1,6 @@
 ---
-title: Power Consumption in the Eastern United States
-subtitle: A Time Series Analysis
+title: Time Series Forecasting Comparison
+subtitle: XGBoost vs AutoRegression on Multiple Datasets
 authors:
   - name: Calvin Carter
     affiliation: UC Berkeley
@@ -11,27 +11,37 @@ bibliography: references.bib
 
 ## Motivation
 
-This comparison between XGBoost and AutoRegression in future predictions of power consumption in the Eastern United States is motivated by curiosity about the relative performance of these two models given non-linear relationships and interactions between features. 
+This comparison between XGBoost and AutoRegression in future predictions of power consumption in the Eastern United States and monthly average sunspot numbers is motivated by curiosity about the relative performance of these two models given non-linear relationships and interactions between features. 
 
 Historically, XGBoost has been used in a variety of applications, with time series forecasting not being an exception. However, AutoRegression is a more traditional approach to time series forecasting, and might outperform XGBoost in a setting with only one source of information: the past values of the time series.
 
-## Dataset
+## Datasets
 
-PMJ Interconnection LLC (PMJ) is a regional transmission organization (RTO) operating an electric transmission system serving all or part of many states in the Eastern United States. It is considered the the largest independent power grid operator in North America [@pv2025pjm].
+In this analysis, we compare XGBoost and AutoRegression models on two different time series datasets:
 
-The dataset we will use in our analysis contains the hourly and daily power consumption data from PJM. The dataset spans 2002 to 2018 and contains 145,336 hourly and 6,057 daily records. [@wqg6-9917-25]
+### 1. PJME Hourly Power Consumption
+
+PMJ Interconnection LLC (PMJ) is a regional transmission organization (RTO) operating an electric transmission system serving all or part of many states in the Eastern United States. It is considered the largest independent power grid operator in North America [@pv2025pjm].
+
+The dataset contains hourly power consumption data from PJM. The dataset spans 2002 to 2018 and contains 145,336 hourly records. [@wqg6-9917-25]
+
+### 2. Monthly Sunspot Numbers (SN_m_tot_V2.0)
+
+This dataset contains monthly mean total sunspot numbers from the World Data Center SILSO, Royal Observatory of Belgium, Brussels, spanning from 1749 to present. This provides a longer historical perspective on solar cycles, which typically last about 11 years. [@SILSO_monthly_sunspot]
 
 ## Analysis
 
-In this analyis, we would like to see whether an XGBoost approach to Autoregression performs better or worse than a typical AR model (i.e. $y_t = \phi_0 + \phi_1 y_{t-1} + \dots + \phi_p y_{t-p} + \epsilon_t$). For each method, we will compare the two by allotting a test set of the final $\approx 10\%$ of daily power consumption data.
+In this analysis, we would like to see whether an XGBoost approach to Autoregression performs better or worse than a typical AR model (i.e. $y_t = \phi_0 + \phi_1 y_{t-1} + \dots + \phi_p y_{t-p} + \epsilon_t$). For each dataset and method, we will compare the two by allotting a test set of the final $\approx 10\%$ of the data.
+
+For both methods, we will use the Mean Squared Error (MSE) as our metric for comparison. Additionally, we will be testing p values from 1 to 40.
 
 ### Method 1: Rolling predictions
 
-The typical modeling pipeline in the Scikit-learn python package makes predictions based on a set number of features $X = (X_1^i,\dots,X_p^i)$ which are typically available when creating future predictions $\hat{y}_{n+1}, \dots \hat{y}_{n+m}$. However, in our autoregressive approach, our predictor variables are the the features, i.e. $X = (X_1^i,\dots,X_p^i) = \hat{y}_{i-p}, \dots, \hat{y}_{i}$. Thus, our features will be entirely created by the models themselves after $p$ predictions. 
+The typical modeling pipeline in the Scikit-learn python package makes predictions based on a set number of features $X = (X_1^i,\dots,X_p^i)$ which are typically available when creating future predictions $\hat{y}_{n+1}, \dots \hat{y}_{n+m}$. However, in our autoregressive approach, our predictor variables are the features, i.e. $X = (X_1^i,\dots,X_p^i) = \hat{y}_{i-p}, \dots, \hat{y}_{i-1}$. Thus, our features will be entirely created by the models themselves after $p$ predictions. 
 
 In this method, we will assume that the models will not have access to true $y$ values after $y_{n}$, where $n$ is the size of the train set.
 
-First, we will create a new class `xgb_model` (available in xgb_model.py), which impliments the rolling prediction-style XGBoost model. The key here is the `forecast` method, which implements the rolling predictions.
+First, we will create a new class `xgb_model` (available in xgb_model.py), which implements the rolling prediction-style XGBoost model. The key here is the `forecast` method, which implements the rolling predictions.
 
 ```python
 import xgboost as xgb
@@ -73,29 +83,47 @@ class xgb_model:
         return X, y
 ```
 
-We then train this rolling XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set. The results:
+We then train this rolling XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set.
 
 ```{python}
-from utils import find_best_model_rolling, plot_best_rolling
+from utils import find_best_model_rolling
 import config
 
-results_rolling = find_best_model_rolling(
-    dataset=config.DATASET, 
-    target=config.TARGET, 
-    p_candidates=config.P_CANDIDATES, 
-    prop_test=config.TEST_PROP
-)
+# Run analysis for all datasets
+for dataset_config in config.DATASETS:
+    dataset = dataset_config['name']
+    target = dataset_config['target']
+    parser = dataset_config['parser']
+    
+    print(f"Dataset: {dataset}")
+    results_rolling = find_best_model_rolling(
+        dataset=dataset,
+        target=target,
+        p_candidates=config.P_CANDIDATES,
+        prop_test=config.TEST_PROP,
+        parser=parser
+    )
+    print()
+    print('----------------')
+    print()
 ```
 
-We see the best model according to the selected metric is the rolling XGBoost on $y_n,\dots,y_{n-25}$ with a Root mean squared error almost 1000 less than the best performing AR model.
+#### Results: PJME Hourly Power Consumption
 
-Let's plot each model's predictions against the real data:
+For the PJME hourly power consumption dataset, we see the best model according to the selected metric is the rolling XGBoost with a Root mean squared error significantly lower than the best performing AR model.
 
-```{python}
-plot_best_rolling(results_rolling)
-```
+![](figs/plot-rolling-PJME_hourly.png)
 
-Although both models fail to capture the seasonal sinusoidal aspect of the test data, the XGBoost predictions are bolder and effectively capture the pattern in baseline variance. While the AR(40) model provides decent predictions, it uses a constant prediction after around 2000 hours.
+Here we can see that the rolling XGBoost model outperforms the AR model with bolder predictions on the test data. While neither model is able to capture the seasonal trend seen in the true data, the XGBoost model performs better overall.
+
+#### Results: Monthly Average Sunspot Numbers
+
+For the monthly average sunspot number dataset, we see the best model according to the selected metric is the rolling XGBoost with a Root mean squared error almost half that of the best performing AR model.
+
+![](figs/plot-rolling-SN_m_tot_V2.0.png)
+
+In this dataset (unlike in the PJME dataset), the rolling XGBoost model outperforms the AR model and is able to effectively capture the sinusoidal trend seen in the true data. This is likely due to there being less noise for XGBoost to overfit to.
+
 
 ### Method 2: Up-to-date Approach
 
@@ -116,7 +144,7 @@ class xgb_model:
 ...
 ```
 
-Additionally, we will have to adjust AR model to use the true $y$ values before $y_t$ instead of their own predictions. We will create a new class `ar_model` (available in ar_model.py), which impliments the up-to-date AR model:
+Additionally, we will have to adjust AR model to use the true $y$ values before $y_t$ instead of their own predictions. We will create a new class `ar_model` (available in ar_model.py), which implements the up-to-date AR model:
 
 ```python
 class ar_model:
@@ -136,31 +164,49 @@ class ar_model:
 ...
 ```
 
-We then train this up-to-date XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set. The results:
+We then train this up-to-date XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set.
 
 ```{python}
-from utils import find_best_model_uptodate, plot_best_uptodate
+from utils import find_best_model_uptodate
 
-results_uptodate = find_best_model_uptodate(
-    dataset=config.DATASET, 
-    target=config.TARGET, 
-    p_candidates=config.P_CANDIDATES, 
-    prop_test=config.TEST_PROP
-)
+for dataset_config in config.DATASETS:
+    dataset = dataset_config['name']
+    target = dataset_config['target']
+    parser = dataset_config['parser']
+
+    print(f"Dataset: {dataset}")
+    print()
+    results_uptodate = find_best_model_uptodate(
+        dataset=dataset, 
+        target=target, 
+        p_candidates=config.P_CANDIDATES, 
+        prop_test=config.TEST_PROP,
+        parser=parser
+    )
+    print()
+    print('----------------')
+    print()
 ```
 
-With the up-to-date approach, both models have access to the true $y$ values up to $y_{t-1}$ when predicting $y_t$. This is a more realistic scenario when predictions are made one step at a time with updated information. We can see here that XGBoost really shines. While the AR model performs well, XGBoost slightly outperforms it.
+#### Results: PJME Hourly Power Consumption
 
-Let's visualize the results:
+With the up-to-date approach, both models have access to the true $y$ values up to $y_{t-1}$ when predicting $y_t$. This is a more realistic scenario when predictions are made one step at a time with updated information.
 
-```{python}
-plot_best_uptodate(results_uptodate)
-```
+![](figs/plot-uptodate-PJME_hourly.png)
 
-Interestingly: we see a more comparable story between the two models in this setting. However, the XGBoost model still outperforms the AR model.
+The up-to-date XGBoost model outperforms the up-to-date AR model with slightly closer predictions to the true data. Visually, it's hard to tell due to the chaotic noise in the data, but the metrics show that the XGBoost model performs better overall.
+
+#### Results: Monthly Average Sunspot Numbers
+
+For the monthly sunspot number dataset with up-to-date predictions, the up-to-date XGBoost model outperforms the AR model with slightly more accurate predictions on the test data, but the difference is not massive.
+
+![](figs/plot-uptodate-SN_m_tot_V2.0.png)
+
+Visually, both of these models perform well. Both capture the sinusoidal trend seen in the true data. The up-to-date XGBoost model outperforms the AR model with slightly more accurate predictions on the test data, but the difference is not visually significant.
+
 
 ## Conclusion
 
-In this project, we compared the performance of XGBoost and AR models on a time series dataset of PJME hourly electricity usage. We found that XGBoost outperforms AR models in both the rolling and up-to-date settings, with the up-to-date setting showing a more comparable story between the two models. 
+In this project, we compared the performance of XGBoost and AR models across two different time series datasets: PJME hourly electricity usage, and daily sunspot numbers. In both datasets, the XGBoost model shows a clear advantage over the AR model. This is because XGBoost is more able to capture non-linear relationships and interactions between variables, while the AR models are limited.
 
-Overall, XGBoost provides a more accurate and robust prediction method for this time series data, likely due to its ability to capture non-linear relationships and the interactions between time points. 
+Overall, I was surprised by the results of this project. I was expecting to see the AR model perform better than the XGBoost model, especially on rolling predictions. But the XGBoost model consistently outperformed the AR model in both datasets.
