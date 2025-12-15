@@ -2,3 +2,7 @@
 /_manuscript/
 
 **/*.quarto_ipynb
+__pycache__
+
+_freeze
+_freeze/*

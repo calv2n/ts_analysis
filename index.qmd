@@ -19,18 +19,122 @@ PMJ Interconnection LLC (PMJ) is a regional transmission organization (RTO) oper
 
 The dataset we will use in our analysis contains the hourly and daily power consumption data from PJM. The dataset spans 2002 to 2018 and contains 145,336 hourly and 6,057 daily records. [@wqg6-9917-25]
 
+## Analysis
+
+In this analyis, we would like to see whether an XGBoost approach to Autoregression performs better or worse than a typical AR model (i.e. $y_t = \phi_0 + \phi_1 y_{t-1} + \dots + \phi_p y_{t-p} + \epsilon_t$). For each method, we will compare the two by allotting a test set of the final $\approx 10\%$ of daily power consumption data.
+
+### Method 1: Rolling predictions
+
+The typical modeling pipeline in the Scikit-learn python package makes predictions based on a set number of features $X = (X_1^i,\dots,X_p^i)$ which are typically available when creating future predictions $\hat{y}_{n+1}, \dots \hat{y}_{n+m}$. However, in our autoregressive approach, our predictor variables are the the features, i.e. $X = (X_1^i,\dots,X_p^i) = \hat{y}_{i-p}, \dots, \hat{y}_{i}$. Thus, our features will be entirely created by the models themselves after $p$ predictions. 
+
+In this method, we will assume that the models will not have access to true $y$ values after $y_{n}$, where $n$ is the size of the train set.
+
+First, we will create a new class `xgb_model` (available in xgb_model.py), which impliments the rolling prediction-style XGBoost model. The key here is the `forecast` method, which implements the rolling predictions.
+
+```python
+import xgboost as xgb
+import numpy as np
+
+class xgb_model:
+    def __init__(self, p):
+        self.md = xgb.XGBRegressor(
+            # Hyperparameters
+        )
+        self.p = p
+    
+    def train_model(self, train):
+        X_train, y_train = self._create_lag_features(data=train, n_lags=self.p)
+        self.md.fit(X_train, y_train)
+    
+    def forecast(self, train, n_forecast):
+        """
+        Rolling predictions: similar to how forecast works 
+        in autoregressive model.
+        """
+        preds = np.zeros(n_forecast)
+        last_values = train[-self.p:].values.copy()
+        for i in range(n_forecast):
+            X_pred = last_values.reshape(1, -1)
+            
+            y_pred = self.md.predict(X_pred)[0]
+            preds[i] = y_pred
+            
+            last_values = np.append(last_values[1:], y_pred)
+        
+        return preds
+
+    def _create_lag_features(self, data, n_lags):
+        X = np.array([
+            data[i - n_lags:i].values for i in range(n_lags, len(data))
+        ])
+        y = data[n_lags:]
+        return X, y
+```
+
+We then train this rolling XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set. The results:
 
 ```{python}
-#| include: true
-from statsmodels.tsa.ar_model import AutoReg
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import numpy as np
-import xgboost as xgb
+from utils import find_best_model_rolling, plot_best_rolling
+import config
 
-# energy_df = pd.read_csv('data/PJME_hourly.csv')
-# energy_df['Datetime'] = pd.to_datetime(energy_df['Datetime'])
-# energy = energy_df['PJME_MW']
-# sns.lineplot(energy_df, x='Datetime', y='PJME_MW')
+results_rolling = find_best_model_rolling(
+    dataset=config.DATASET, 
+    target=config.TARGET, 
+    p_candidates=config.P_CANDIDATES, 
+    prop_test=config.TEST_PROP
+)
 ```
+
+We see the best model according to the selected metric is the rolling XGBoost on $y_n,\dots,y_{n-25}$ with a Root mean squared error almost 1000 less than the best performing AR model.
+
+Let's plot each model's predictions against the real data:
+
+```{python}
+plot_best_rolling(results_rolling)
+```
+
+Although both models fail to capture the seasonal sinusoidal aspect of the test data, the XGBoost predictions are bolder and effectively capture the pattern in baseline variance. While the AR(40) model provides decent predictions, it uses a constant prediction after around 2000 hours.
+
+### Method 2: Up-to-date Approach
+
+In the typical autoregression pipeline, the model creates rolling predictions, and only has information available from the train set. In this approach, we will allow both the AR model and the XGBoost model to use the true $y$ values before $y_t$ instead of their own predictions.
+
+To implement this, we will create a new method in the `xgb_model` class called `predict` which implements the up-to-date approach:
+
+```python
+class xgb_model:
+...
+    def predict(self, full_series, train_size):
+        """
+        Up-to-date approach: uses true y values before y_t 
+        instead of rolling predictions.
+        """
+        X_test, _ = self._create_lag_features(full_series[train_size - self.p:], self.p)
+        return self.md.predict(X_test)
+...
+```
+
+Additionally, we will have to adjust AR model to use the true $y$ values before $y_t$ instead of their own predictions. We will create a new class `ar_model` (available in ar_model.py), which impliments the up-to-date AR model.
+
+We then train this up-to-date XGBoost model and the AR model on $p$ value candidates from 1 to 40 and compare which has the lowest MSE on the test set. The results:
+
+```{python}
+from utils import find_best_model_uptodate, plot_best_uptodate
+
+results_uptodate = find_best_model_uptodate(
+    dataset=config.DATASET, 
+    target=config.TARGET, 
+    p_candidates=config.P_CANDIDATES, 
+    prop_test=config.TEST_PROP
+)
+```
+
+With the up-to-date approach, both models have access to the true $y$ values up to $y_{t-1}$ when predicting $y_t$. This is a more realistic scenario when predictions are made one step at a time with updated information. We can see here that XGBoost really shines. While the AR model performs well 
+
+Let's visualize the results:
+
+```{python}
+plot_best_uptodate(results_uptodate)
+```
+
+Interestingly: we see a more comparable story between the two models in this setting. However, the XGBoost model still outperforms the AR model. Although

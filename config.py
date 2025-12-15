@@ -1,0 +1,4 @@
+P_CANDIDATES = range(1, 41)
+TEST_PROP = 0.1
+DATASET = 'PJME_hourly'
+TARGET = 'PJME_MW'
