@@ -5,7 +5,6 @@ from ar_model import ar_model
 import seaborn as sns
 import pandas as pd
 import numpy as np
-import time
 
 def calculate_metrics(test, preds):
     mse = mean_squared_error(test, preds)
@@ -56,7 +55,7 @@ def plot_best_rolling(results):
     sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
     sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
-    plt.title(f'Best XGBoost and AR Models (Rolling Approach)')
+    plt.title('Best XGBoost and AR Models (Rolling Approach)')
     plt.ylabel('Power Consumption (MW)')
     plt.xlabel('Time')
     plt.grid(alpha=0.4, zorder=1)
@@ -103,7 +102,7 @@ def find_best_model_rolling(dataset, target, p_candidates, prop_test=0.1):
                 results['XGB']['best_mse'] = xgb_results['mse']
                 results['XGB']['best_p'] = p
         except Exception as e:
-            print(f"XGB MODEL FAILED AT P={p}")
+            print(f"AR MODEL FAILED AT P={p}, e={e}")
         
         try:
             ar_results = get_results_AR_rolling(dataset, target, p, prop_test, verbose=False)
@@ -112,7 +111,7 @@ def find_best_model_rolling(dataset, target, p_candidates, prop_test=0.1):
                 results['AR']['best_mse'] = ar_results['mse']
                 results['AR']['best_p'] = p
         except Exception as e:
-            print(f"AR MODEL FAILED AT P={p}")
+            print(f"AR MODEL FAILED AT P={p}, e={e}")
 
     best_xgb_p = results['XGB']['best_p']
     best_xgb = results['XGB']['metrics'][best_xgb_p]
@@ -266,7 +265,7 @@ def plot_best_uptodate(results):
     sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
     sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
-    plt.title(f'Best XGBoost and AR Models (Up-to-date Approach)')
+    plt.title('Best XGBoost and AR Models (Up-to-date Approach)')
     plt.ylabel('Power Consumption (MW)')
     plt.xlabel('Time')
     plt.grid(alpha=0.4, zorder=1)
