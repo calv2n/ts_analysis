@@ -52,10 +52,9 @@ def plot_best_rolling(results):
     best_p_xgb = results['XGB']['best_p']
     best_p_ar = results['AR']['best_p']
 
-    sns.set_palette('magma', n_colors=3)
-    sns.lineplot(x=t, y=test, label='Test', zorder=2, alpha=0.2)
-    sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2)
-    sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2)
+    sns.lineplot(x=t, y=test, label='Test', zorder=2, alpha=0.2, color='#0d00ff')
+    sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
+    sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
     plt.title(f'Best XGBoost and AR Models (Rolling Approach)')
     plt.ylabel('Power Consumption (MW)')
@@ -263,10 +262,9 @@ def plot_best_uptodate(results):
     best_p_xgb = results['XGB']['best_p']
     best_p_ar = results['AR']['best_p']
 
-    sns.set_palette('magma', n_colors=3)
-    sns.lineplot(x=t, y=test, label='Test', zorder=2, alpha=0.2)
-    sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2)
-    sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2)
+    sns.lineplot(x=t, y=test, label='Test', zorder=2, alpha=0.2, color='#0d00ff')
+    sns.lineplot(x=t, y=preds_xgb, label=f'XGB Predictions (p={best_p_xgb})', zorder=2, alpha=0.2, color='#ff00bf')
+    sns.lineplot(x=t, y=preds_ar, label=f'AR Predictions (p={best_p_ar})', zorder=2, alpha=0.2, color='#59ff00')
 
     plt.title(f'Best XGBoost and AR Models (Up-to-date Approach)')
     plt.ylabel('Power Consumption (MW)')
