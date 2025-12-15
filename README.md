@@ -8,7 +8,7 @@ This project explores the performance of XGBoost vs AutoRegression in future pre
 
 ### GitHub
 
-[https://github.com/calv2n/energy_analysis](https://github.com/calv2n/energy_analysis)
+[https://github.com/calv2n/energy_analysis/](https://github.com/calv2n/energy_analysis/)
 
 ### Dataset
 
