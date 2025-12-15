@@ -2,10 +2,14 @@
 
 This project explores the performance of XGBoost vs AutoRegression in future predictions of power consumption in the Eastern United States.
 
+### Website
 
-<p align="center">
-  <a href="https://calvin.quarto.pub/energy_analysis/" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: white; background-color: #007bff; border-radius: 5px; text-decoration: none;">
-    View Project Website
-  </a>
-</p>
+[Website](https://calvin.quarto.pub/energy_analysis/)
 
+### GitHub
+
+[GitHub](https://github.com/calv2n/energy_analysis)
+
+### Dataset
+
+The dataset was provided by PMJ Interconnection LLC (PMJ) and can be found [here](https://www.pjm.com/market-data/historical-data).
