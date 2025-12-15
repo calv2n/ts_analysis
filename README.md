@@ -4,11 +4,11 @@ This project explores the performance of XGBoost vs AutoRegression in future pre
 
 ### Website
 
-[https://calvin.quarto.pub/energy_analysis/](https://calvin.quarto.pub/ts-analysis/)
+[https://calvin.quarto.pub/ts-analysis/](https://calvin.quarto.pub/ts-analysis/)
 
 ### GitHub
 
-[https://github.com/calv2n/energy_analysis/](https://github.com/calv2n/ts_analysis/)
+[https://github.com/calv2n/ts_analysis/](https://github.com/calv2n/ts_analysis/)
 
 ### Dataset
 
